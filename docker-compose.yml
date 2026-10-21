@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - agrolink
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=agrolink
+      - DB_USER=agrolink
+      - DB_PASSWORD=agrolink
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - agrolink
+
+  db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_DATABASE=agrolink
+      - MYSQL_USER=agrolink
+      - MYSQL_PASSWORD=agrolink
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/migrations/mysql:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agrolink
+
+volumes:
+  mysql_data:
+
+networks:
+  agrolink:
+    driver: bridge

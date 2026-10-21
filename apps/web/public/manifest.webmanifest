@@ -1,0 +1,21 @@
+{
+  "name": "AgroLink",
+  "short_name": "AgroLink",
+  "description": "Bolsa de cosechas con garantía simulada para pequeños productores",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#2E7D32",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "shopping"],
+  "lang": "es",
+  "dir": "ltr"
+}

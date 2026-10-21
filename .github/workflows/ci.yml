@@ -1,0 +1,246 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_API: ${{ github.repository_owner }}/agrolink-api
+  IMAGE_WEB: ${{ github.repository_owner }}/agrolink-web
+
+jobs:
+  lint-and-test:
+    name: Lint + Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
+
+      - name: Install API deps
+        working-directory: ./apps/api
+        run: npm ci
+
+      - name: Lint API
+        working-directory: ./apps/api
+        run: npm run lint
+
+      - name: Typecheck API
+        working-directory: ./apps/api
+        run: npm run typecheck
+
+      - name: Test API
+        working-directory: ./apps/api
+        run: npm test
+
+      - name: Install Web deps
+        working-directory: ./apps/web
+        run: npm ci
+
+      - name: Lint Web
+        working-directory: ./apps/web
+        run: npm run lint
+
+      - name: Typecheck Web
+        working-directory: ./apps/web
+        run: npx tsc --noEmit
+
+      - name: Test Web
+        working-directory: ./apps/web
+        run: npm test
+
+  build-images:
+    name: Build Docker images
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'develop'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          push: false
+          tags: ${{ env.IMAGE_API }}:develop-${{ github.sha }}
+          load: true
+
+      - name: Build Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          push: false
+          tags: ${{ env.IMAGE_WEB }}:develop-${{ github.sha }}
+          load: true
+
+  uat:
+    name: UAT (Compose + Smoke tests)
+    needs: build-images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: agrolink
+          MYSQL_USER: agrolink
+          MYSQL_PASSWORD: agrolink
+          MYSQL_ROOT_PASSWORD: root
+        ports: [3306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and load images
+        run: |
+          docker build -t agrolink-api:uat ./apps/api
+          docker build -t agrolink-web:uat ./apps/web
+
+      - name: Start Compose stack
+        run: |
+          docker compose up -d
+          sleep 10
+
+      - name: Smoke test API health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/salud | grep -q '"ok":true'; then
+              echo "API health OK"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API health check failed"
+          docker compose logs api
+          exit 1
+
+      - name: Smoke test Web
+        run: |
+          if curl -sf http://localhost:8080/ | grep -q 'AgroLink'; then
+            echo "Web OK"
+          else
+            echo "Web check failed"
+            docker compose logs web
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
+  push-dockerhub:
+    name: Push to Docker Hub
+    needs: uat
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_API }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+
+      - name: Extract metadata for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_WEB }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+
+  deploy-cloudflare:
+    name: Deploy to Cloudflare
+    needs: push-dockerhub
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy API Worker
+        working-directory: ./apps/api
+        run: wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Web (Static Assets)
+        working-directory: ./apps/web
+        run: |
+          npm ci
+          npm run build
+          wrangler pages deploy ./dist --project-name=agrolink-web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
