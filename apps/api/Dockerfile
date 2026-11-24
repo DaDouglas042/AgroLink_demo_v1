@@ -1,14 +1,29 @@
-# Dockerfile para API (Node + Hono)
-FROM node:20-alpine AS base
+# Dockerfile para API (Node + Hono) - Multi-stage build
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Instalar dependencias
+# Instalar TODAS las dependencias (incluyendo dev para compilar)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install
 
-# Copiar código
-COPY dist ./dist
+# Copiar código y compilar
+COPY . .
+RUN npm run build
+
+# --- Runtime stage ---
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Solo dependencias de producción
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copiar código compilado
+COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 

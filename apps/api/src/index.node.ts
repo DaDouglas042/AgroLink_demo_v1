@@ -1,8 +1,16 @@
 import { Hono } from 'hono'
-import { salud } from '@/routes/salud'
+import { serve } from '@hono/node-server'
+import { salud } from './routes/salud.js'
 
-const app = new Hono()
+export const app = new Hono()
 
 app.route('/api', salud)
 
-export default app
+if (process.argv[1] && process.argv[1].endsWith('index.node.js')) {
+  const port = Number(process.env.PORT) || 3000
+  serve({
+    fetch: app.fetch,
+    port,
+  })
+  console.log(`API listening on http://localhost:${port}`)
+}

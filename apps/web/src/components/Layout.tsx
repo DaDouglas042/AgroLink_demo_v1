@@ -1,10 +1,15 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './Layout.css'
 
 export function Layout() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const location = useLocation()
+
+  // Cierra el menú móvil al cambiar de pantalla
+  useEffect(() => {
+    setMenuAbierto(false)
+  }, [location.pathname])
 
   const navegacion = [
     { ruta: '/lotes', etiqueta: 'Lotes', icono: '📦' },
@@ -15,6 +20,9 @@ export function Layout() {
 
   return (
     <div className="layout">
+      <a className="skip-link" href="#contenido">
+        Saltar al contenido
+      </a>
       <header className="header">
         <button
           className="menu-toggle"
@@ -28,32 +36,44 @@ export function Layout() {
           <span className="logo-icon">🌱</span>
           <span className="logo-text">AgroLink</span>
         </NavLink>
-      </header>
 
-      <nav className={`nav ${menuAbierto ? 'abierto' : ''}`} role="navigation" aria-label="Navegación principal">
-        <ul className="nav-lista">
-          {navegacion.map((item) => (
-            <li key={item.ruta}>
+        <nav
+          className={`nav ${menuAbierto ? 'abierto' : ''}`}
+          role="navigation"
+          aria-label="Navegación principal"
+        >
+          <ul className="nav-lista">
+            {navegacion.map((item) => (
+              <li key={item.ruta}>
+                <NavLink
+                  to={item.ruta}
+                  className={({ isActive }) => `nav-enlace ${isActive ? 'activo' : ''}`}
+                  onClick={() => setMenuAbierto(false)}
+                >
+                  <span className="nav-icon" aria-hidden="true">
+                    {item.icono}
+                  </span>
+                  <span>{item.etiqueta}</span>
+                </NavLink>
+              </li>
+            ))}
+            <li>
               <NavLink
-                to={item.ruta}
-                className={({ isActive }) => `nav-enlace ${isActive ? 'activo' : ''}`}
+                to="/lotes/publicar"
+                className="nav-enlace primario"
                 onClick={() => setMenuAbierto(false)}
               >
-                <span className="nav-icon">{item.icono}</span>
-                <span>{item.etiqueta}</span>
+                <span className="nav-icon" aria-hidden="true">
+                  ➕
+                </span>
+                <span>Publicar lote</span>
               </NavLink>
             </li>
-          ))}
-          <li>
-            <NavLink to="/lotes/publicar" className="nav-enlace primario" onClick={() => setMenuAbierto(false)}>
-              <span className="nav-icon">➕</span>
-              <span>Publicar lote</span>
-            </NavLink>
-          </li>
-        </ul>
-      </nav>
+          </ul>
+        </nav>
+      </header>
 
-      <main className="main" role="main">
+      <main className="main" id="contenido" role="main">
         <Outlet />
       </main>
 

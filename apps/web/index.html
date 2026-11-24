@@ -2,12 +2,22 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="AgroLink - Bolsa de cosechas para pequeños productores" />
     <meta name="theme-color" content="#2E7D32" />
+    <meta property="og:title" content="AgroLink — Bolsa de cosechas con garantía simulada" />
+    <meta property="og:description" content="Vende tu cosecha directo al comprador, con peso confirmado por ambas partes." />
+    <meta property="og:type" content="website" />
     <title>AgroLink</title>
     <link rel="manifest" href="/manifest.webmanifest" />
+    <script>
+      // Aplica el tema guardado antes de pintar (sin parpadeo)
+      try {
+        var tema = localStorage.getItem('agrolink.tema')
+        if (tema === 'oscuro') document.documentElement.dataset.tema = 'oscuro'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

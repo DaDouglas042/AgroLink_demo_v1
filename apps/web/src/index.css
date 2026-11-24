@@ -8,6 +8,8 @@
   --color-primary: #2E7D32;
   --color-primary-light: #4CAF50;
   --color-primary-dark: #1B5E20;
+  /* texto/enlaces verdes: legible en claro y en oscuro */
+  --color-link: #2E7D32;
   --color-surface: #FFFFFF;
   --color-background: #F5F5F5;
   --color-text: #212121;
@@ -27,6 +29,22 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  color-scheme: light;
+}
+
+/* Modo oscuro (toggle en Perfil) */
+:root[data-tema='oscuro'] {
+  --color-primary: #2E7D32;
+  --color-link: #81C784;
+  --color-surface: #1C1C1E;
+  --color-background: #121212;
+  --color-text: #F2F2F2;
+  --color-text-secondary: #A0A0A0;
+  --color-border: #3A3A3C;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
 }
 
 body {
@@ -57,12 +75,61 @@ input, select, textarea {
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--color-link);
   text-decoration: none;
 }
 
 a:hover {
   text-decoration: underline;
+}
+
+/* Indicador de foco visible solo con teclado (nunca outline: none sin reemplazo) */
+:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Enlace de accesibilidad: saltar al contenido principal */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-md) 0;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Números alineados en precios y montos */
+.numero,
+.lote-precio,
+.oferta-precio,
+.monto-grande,
+.pedido-meta,
+.stats strong,
+.paginacion-info,
+.desglose dd {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Respeta la preferencia del sistema por menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .sr-only {

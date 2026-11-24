@@ -5,10 +5,11 @@ import { Lotes } from '@/pages/Lotes'
 import { PublicarLote } from '@/pages/PublicarLote'
 import { DetalleLote } from '@/pages/DetalleLote'
 import { MisPedidos } from '@/pages/MisPedidos'
+import { DetallePedido } from '@/pages/DetallePedido'
 import { ComparadorMargen } from '@/pages/ComparadorMargen'
 import { Perfil } from '@/pages/Perfil'
 
-export function App() {
+export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
@@ -17,8 +18,10 @@ export function App() {
         <Route path="lotes/publicar" element={<PublicarLote />} />
         <Route path="lotes/:id" element={<DetalleLote />} />
         <Route path="pedidos" element={<MisPedidos />} />
+        <Route path="pedidos/:id" element={<DetallePedido />} />
         <Route path="comparador" element={<ComparadorMargen />} />
         <Route path="perfil" element={<Perfil />} />
+        <Route path="*" element={<Home />} />
       </Route>
     </Routes>
   )

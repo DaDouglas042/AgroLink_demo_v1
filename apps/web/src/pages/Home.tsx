@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 export function Home() {
   return (
     <div className="page home">
@@ -7,13 +9,13 @@ export function Home() {
           Bolsa de cosechas con garantía de pago simulada, confirmación de peso
           por ambas partes y funciona aunque falle la señal.
         </p>
-        <nav className="hero-actions">
-          <a href="/lotes/publicar" className="btn btn-primary btn-lg">
-            <span>📦</span> Publicar mi lote
-          </a>
-          <a href="/lotes" className="btn btn-secondary btn-lg">
-            <span>🔍</span> Ver lotes disponibles
-          </a>
+        <nav className="hero-actions" aria-label="Acciones principales">
+          <Link to="/lotes/publicar" className="btn btn-primary btn-lg">
+            <span aria-hidden="true">📦</span> Publicar mi lote
+          </Link>
+          <Link to="/lotes" className="btn btn-secondary btn-lg">
+            <span aria-hidden="true">🔍</span> Ver lotes disponibles
+          </Link>
         </nav>
       </section>
 
