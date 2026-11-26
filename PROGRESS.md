@@ -129,3 +129,12 @@ git push -u origin feature/xxx
 # PR a develop → CI corre → merge → UAT
 # PR develop→main → deploy
 ```
+### 2026-11-26 — Sesión 3 (CI real en GitHub)
+
+- ✅ Repo creado en GitHub + push de `master` y `develop`
+- ✅ Protección de ramas (PR obligatorio + 3 checks) en ambas ramas
+- ✅ Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DOCKERHUB_TOKEN`
+- ✅ Fix UAT: eliminado `services:mysql` duplicado (choque puerto 3306)
+- ✅ `develop` sincronizado con `master` (fast-forward)
+- 🔄 Primera corrida completa del pipeline con push a Docker Hub
+
