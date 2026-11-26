@@ -92,20 +92,8 @@ jobs:
     needs: build-images
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_DATABASE: agrolink
-          MYSQL_USER: agrolink
-          MYSQL_PASSWORD: agrolink
-          MYSQL_ROOT_PASSWORD: root
-        ports: [3306:3306]
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -u root -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+    # Sin `services:`: docker-compose.yml ya levanta su propio MySQL en 3306.
+    # Dejarlo duplicado provocaba "Bind for 0.0.0.0:3306 failed: port is already allocated".
     steps:
       - name: Checkout
         uses: actions/checkout@v4
