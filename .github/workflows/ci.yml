@@ -91,7 +91,9 @@ jobs:
     name: UAT (Compose + Smoke tests)
     needs: build-images
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+    # Corre en PR (para que la protección de rama pueda exigirlo como check)
+    # y en push a develop/master (donde dispara el flujo de despliegue).
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'))
     # Sin `services:`: docker-compose.yml ya levanta su propio MySQL en 3306.
     # Dejarlo duplicado provocaba "Bind for 0.0.0.0:3306 failed: port is already allocated".
     steps:
