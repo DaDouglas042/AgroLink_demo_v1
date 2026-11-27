@@ -1,0 +1,14 @@
+name = "agrolink-api"
+main = "src/index.worker.ts"
+compatibility_date = "2025-01-01"
+
+[observability]
+enabled = true
+
+[env.dev]
+name = "agrolink-api-dev"
+vars = { APP_ENV = "dev" }
+
+[env.prod]
+name = "agrolink-api-prod"
+vars = { APP_ENV = "prod" }

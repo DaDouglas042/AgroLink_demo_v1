@@ -78,7 +78,10 @@ export function Layout() {
       </main>
 
       <footer className="footer">
-        <p>AgroLink — Bolsa de cosechas con garantía simulada</p>
+        <p>
+          AgroLink — Bolsa de cosechas con garantía simulada · Ambiente:{' '}
+          <strong>{(import.meta.env.VITE_APP_ENV || 'local').toUpperCase()}</strong>
+        </p>
       </footer>
     </div>
   )

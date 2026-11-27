@@ -42,9 +42,9 @@ jobs:
         working-directory: ./apps/api
         run: npm run typecheck
 
-      - name: Test API
+      - name: Test + Coverage API (gate >= 60%)
         working-directory: ./apps/api
-        run: npm test
+        run: npm run test:coverage
 
       - name: Install Web deps
         working-directory: ./apps/web
@@ -58,9 +58,39 @@ jobs:
         working-directory: ./apps/web
         run: npx tsc --noEmit
 
-      - name: Test Web
+      - name: Test + Coverage Web
         working-directory: ./apps/web
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Publicar resumen de cobertura
+        if: always()
+        run: |
+          echo "## Reporte de Cobertura (Vitest v8)" >> "$GITHUB_STEP_SUMMARY"
+          node -e '
+            const fs = require("fs");
+            const rows = [];
+            for (const [name, p] of [["API (Backend)", "apps/api/coverage/coverage-summary.json"], ["Web (Frontend)", "apps/web/coverage/coverage-summary.json"]]) {
+              if (fs.existsSync(p)) {
+                const t = JSON.parse(fs.readFileSync(p, "utf8")).total;
+                rows.push(`| ${name} | ${t.statements.pct}% | ${t.branches.pct}% | ${t.functions.pct}% | ${t.lines.pct}% |`);
+              }
+            }
+            if (rows.length) {
+              console.log("| App | Statements | Branches | Functions | Lines |");
+              console.log("|---|---:|---:|---:|---:|");
+              console.log(rows.join("\n"));
+            }
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir artefactos de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            apps/api/coverage
+            apps/web/coverage
+          retention-days: 14
 
   build-images:
     name: Build Docker images
@@ -97,7 +127,6 @@ jobs:
     # y en push a develop/master (donde dispara el flujo de despliegue).
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'))
     # Sin `services:`: docker-compose.yml ya levanta su propio MySQL en 3306.
-    # Dejarlo duplicado provocaba "Bind for 0.0.0.0:3306 failed: port is already allocated".
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,6 +170,51 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker compose down -v
+
+  deploy-dev:
+    name: Deploy Dev (Cloudflare Workers + Pages)
+    needs: uat
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: dev
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy Backend Dev (Cloudflare Worker)
+        working-directory: ./apps/api
+        run: |
+          npm ci
+          wrangler deploy --env dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Frontend Dev (Cloudflare Pages)
+        working-directory: ./apps/web
+        run: |
+          npm ci
+          VITE_APP_ENV=dev npm run build
+          wrangler pages project create agrolink-web --production-branch=master || true
+          wrangler pages deploy ./dist --project-name=agrolink-web --branch=develop
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   push-dockerhub:
     name: Push to Docker Hub
@@ -200,11 +274,13 @@ jobs:
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
 
-  deploy-cloudflare:
-    name: Deploy to Cloudflare
+  deploy-prod:
+    name: Deploy Prod (Cloudflare Workers + Pages)
     needs: push-dockerhub
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    environment:
+      name: production
     permissions:
       contents: read
     steps:
@@ -215,18 +291,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/api/package-lock.json
+            apps/web/package-lock.json
 
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      # La API no se despliega como Worker: se distribuye como imagen Docker
-      # (paso anterior, push-dockerhub). Este job publica el sitio estático.
-      - name: Deploy Web (Static Assets)
+      - name: Deploy Backend Prod (Cloudflare Worker)
+        working-directory: ./apps/api
+        run: |
+          npm ci
+          wrangler deploy --env prod
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Frontend Prod (Cloudflare Pages)
         working-directory: ./apps/web
         run: |
           npm ci
-          npm run build
-          npx wrangler pages deploy ./dist --project-name=agrolink-web
+          VITE_APP_ENV=prod npm run build
+          wrangler pages project create agrolink-web --production-branch=master || true
+          wrangler pages deploy ./dist --project-name=agrolink-web --branch=master
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
